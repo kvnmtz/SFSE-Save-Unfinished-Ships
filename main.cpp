@@ -4,12 +4,12 @@
 #include "utils.hpp"
 
 #pragma region SFSE_SETUP_CODE
-#define MAKE_EXE_VERSION_EX(major, minor, build, sub)	((((major) & 0xFF) << 24) | (((minor) & 0xFF) << 16) | (((build) & 0xFFF) << 4) | ((sub) & 0xF))
-#define MAKE_EXE_VERSION(major, minor, build)			MAKE_EXE_VERSION_EX(major, minor, build, 0)
+#define MAKE_EXE_VERSION_EX(major, minor, build, sub) ((((major) & 0xFF) << 24) | (((minor) & 0xFF) << 16) | (((build) & 0xFFF) << 4) | ((sub) & 0xF))
+#define MAKE_EXE_VERSION(major, minor, build) MAKE_EXE_VERSION_EX(major, minor, build, 0)
 
 typedef uint32_t PluginHandle;
 
-#define RUNTIME_VERSION_1_7_36	MAKE_EXE_VERSION(1, 7, 36)	// 0x01070240
+#define RUNTIME_VERSION_1_7_36 MAKE_EXE_VERSION(1, 7, 36)
 
 struct SFSEPluginVersionData
 {
@@ -40,21 +40,21 @@ struct SFSEPluginVersionData
         // additional bits will be added here when breaking changes happen
     };
 
-    std::uint32_t	dataVersion;		// set to kVersion
+    std::uint32_t    dataVersion;            // set to kVersion
 
-    std::uint32_t	pluginVersion;		// version number of your plugin
-    char			name[256];			// null-terminated ASCII plugin name (please make this recognizable to users)
-    char			author[256];		// null-terminated ASCII plugin author name
+    std::uint32_t    pluginVersion;          // version number of your plugin
+    char             name[256];              // null-terminated ASCII plugin name (please make this recognizable to users)
+    char             author[256];            // null-terminated ASCII plugin author name
 
     // version compatibility
-    std::uint32_t	addressIndependence;	// bitfield. describe how you find your addresses using the kAddressIndependence_ enums
-    std::uint32_t	structureIndependence;	// bitfield. describe how you handle structure layout using the kStructureIndependence_ enums
-    std::uint32_t	compatibleVersions[16];	// zero-terminated list of RUNTIME_VERSION_ defines your plugin is compatible with
+    std::uint32_t    addressIndependence;    // bitfield. describe how you find your addresses using the kAddressIndependence_ enums
+    std::uint32_t    structureIndependence;  // bitfield. describe how you handle structure layout using the kStructureIndependence_ enums
+    std::uint32_t    compatibleVersions[16]; // zero-terminated list of RUNTIME_VERSION_ defines your plugin is compatible with
 
-    std::uint32_t	seVersionRequired;		// minimum version of the script extender required, compared against PACKED_SFSE_VERSION
+    std::uint32_t    seVersionRequired;      // minimum version of the script extender required, compared against PACKED_SFSE_VERSION
     // you probably should just set this to 0 unless you know what you are doing
-    std::uint32_t	reservedNonBreaking;	// bitfield. set to 0
-    std::uint32_t	reservedBreaking;		// bitfield. set to 0
+    std::uint32_t    reservedNonBreaking;    // bitfield. set to 0
+    std::uint32_t    reservedBreaking;       // bitfield. set to 0
 };
 
 typedef struct SFSEPluginInfo_t
