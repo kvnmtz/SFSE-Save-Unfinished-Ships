@@ -4,49 +4,58 @@
 
 namespace Global
 {
-    inline std::map<string, byte> jmpPatchingTargets = {
-        { "$SB_ERRORBODY_NOT_ATTACHED", 0x75 },
-        { "$SB_ERRORBODY_COUNT", 0x76 },
-        { "$SB_ERRORBODY_SIZE", 0x76 },
 
-        { "$SB_LIMITBODY_MAX_COCKPIT", 0x7E },
-        { "$SB_LIMITBODY_MISSING_COCKPIT", 0x7D },
-        { "$SB_LIMITBODY_MAX_DOCKER", 0x7E },
-        { "$SB_LIMITBODY_MISSING_DOCKER", 0x7D },
-        { "$SB_LIMITBODY_MIN_ENGINE", 0x7D },
-        { "$SB_LIMITBODY_MAX_GRAV_DRIVE", 0x7E },
-        { "$SB_LIMITBODY_MISSING_GRAV_DRIVE", 0x7D },
-        { "$SB_LIMITBODY_MAX_LANDING_BAY", 0x7E },
-        { "$SB_LIMITBODY_MISSING_LANDING_BAY", 0x7D },
-        { "$SB_LIMITBODY_MIN_LANDING_GEAR", 0x75 },
-        { "$SB_ERRORBODY_REACTOR_CLASS", 0x75 },
-        { "$SB_LIMITBODY_MAX_REACTOR", 0x7E },
-        { "$SB_LIMITBODY_MISSING_REACTOR", 0x7D },
-        { "$SB_LIMITBODY_MAX_SHIELD", 0x7E },
-        { "$SB_LIMITBODY_MISSING_SHIELD", 0x75 },
-        { "$SB_LIMITBODY_MIN_FUEL_TANK", 0x7D },
-        { "$SB_LIMITBODY_MAX_WEAPONS", 0x7E },
-        { "$SB_LIMITBODY_MAX_WEAPONS_TYPES", 0x7E },
-
-        { "$SB_LIMITBODY_EXCESS_POWER_ENGINE", 0x7E },
-        { "$SB_LIMITBODY_EXCESS_POWER_WEAPON", 0x74 },
-
-        { "$SB_ERRORBODY_SHIP_TOO_HEAVY_TO_GRAVJUMP", 0x73 },
-        { "$SB_LIMITBODY_NOT_ENOUGH_TURN_POWER", 0x73 },
-
-        { "$SB_WEAPONBODY_MISSING_ASSIGNMENT", 0x75 },
-        { "$SB_WEAPONBODY_WEAPONS_MUST_BE_DIFFERENT", 0x74 },
-        { "$SB_WEAPONBODY_WEAPONS_UNASSIGNED", 0x7E },
-
-        { "$SB_ERRORBODY_DOCKER_INVALID_POSITION", 0x75 },
-
-        { "$SB_ERRORBODY_LANDINGENGINE_NOT_ALIGNED_WITH_LANDINGBAY", 0x75 },
-        { "$SB_ERRORBODY_MODULE_BELOW_LANDINGBAY", 0x75 }
+    struct PatchingTarget
+    {
+        string ReferencedString;
+        bool SearchBackwards;
+        std::vector<string> InstructionSignature;
+        byte Patch;
+        uint8_t InstructionIndex;
+        uint8_t PatchByteCount;
     };
-
-    inline std::map<string, string> nopPatchingTargets = {
-        { "$SB_ERRORBODY_LANDINGBAY_CANNOT_REACH_COCKPIT", "je" },
-        { "$SB_ERRORBODY_DOCKER_CANNOT_REACH_COCKPIT", "je" }
+    
+    inline std::vector<PatchingTarget> patchingTargets = {
+        { "$SB_ERRORBODY_NOT_ATTACHED", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_ERRORBODY_COUNT", true, { "jbe" }, 0xEB, 0, 1 },
+        { "$SB_ERRORBODY_SIZE", true, { "jbe" }, 0xEB, 0, 1 },
+    
+        { "$SB_LIMITBODY_MAX_COCKPIT", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_COCKPIT", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_DOCKER", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_DOCKER", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MIN_ENGINE", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_GRAV_DRIVE", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_GRAV_DRIVE", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_LANDING_BAY", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_LANDING_BAY", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MIN_LANDING_GEAR", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_ERRORBODY_REACTOR_CLASS", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_REACTOR", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_REACTOR", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_SHIELD", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MISSING_SHIELD", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MIN_FUEL_TANK", true, { "jge" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_WEAPONS", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_MAX_WEAPONS_TYPES", true, { "jle" }, 0xEB, 0, 1 },
+    
+        { "$SB_LIMITBODY_EXCESS_POWER_ENGINE", true, { "jle" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_EXCESS_POWER_WEAPON", true, { "je" }, 0xEB, 0, 1 },
+    
+        { "$SB_ERRORBODY_SHIP_TOO_HEAVY_TO_GRAVJUMP", true, { "jae" }, 0xEB, 0, 1 },
+        { "$SB_LIMITBODY_NOT_ENOUGH_TURN_POWER", true, { "jae" }, 0xEB, 0, 1 },
+    
+        { "$SB_WEAPONBODY_MISSING_ASSIGNMENT", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_WEAPONBODY_WEAPONS_MUST_BE_DIFFERENT", true, { "je", "cmp" }, 0xEB, 0, 1},
+        { "$SB_WEAPONBODY_WEAPONS_UNASSIGNED", true, { "jle" }, 0xEB, 0, 1 },
+    
+        { "$SB_ERRORBODY_DOCKER_INVALID_POSITION", true, { "jne" }, 0xEB, 0, 1 },
+    
+        { "$SB_ERRORBODY_LANDINGENGINE_NOT_ALIGNED_WITH_LANDINGBAY", true, { "jne" }, 0xEB, 0, 1 },
+        { "$SB_ERRORBODY_MODULE_BELOW_LANDINGBAY", true, { "jne" }, 0xEB, 0, 1 },
+    
+        { "$SB_ERRORBODY_LANDINGBAY_CANNOT_REACH_COCKPIT", true, { "je" }, 0x90, 0, 2 },
+        { "$SB_ERRORBODY_DOCKER_CANNOT_REACH_COCKPIT", true, { "je" }, 0x90, 0, 2 }
     };
 
     /* Address -> <Original, Patch> */
@@ -56,5 +65,8 @@ namespace Global
 
     inline void** scaleformManagerPtr;
     inline void* executeCommandPtr;
+
+    inline int maxShipModulesPrev;
+    inline int* maxShipModulesPtr;
 
 }

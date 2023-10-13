@@ -26,55 +26,98 @@ bool FindPatchingTargets()
 {
     Log("Searching addresses to patch...");
 
-    for (const auto& [text, byteToReplace] : Global::jmpPatchingTargets)
+    for (const auto& target : Global::patchingTargets)
     {
-        const auto stringRef = FindStringReferenceA(text);
+        const auto stringRef = FindStringReferenceA(target.ReferencedString);
         if (!stringRef)
         {
-            Log("Couldn't find string reference to {}", text);
+            Log("Couldn't find string reference to {}", target.ReferencedString);
             return false;
         }
-
-        const auto patchAddress = PatternScanExactReverse(std::vector(1, byteToReplace), stringRef, 0x10);
-
-        Log("Found address to patch (jmp) {} @ 0x{:X}", text, reinterpret_cast<uintptr_t>(patchAddress));
-
-        Global::targetAddresses.try_emplace(patchAddress, std::make_pair(byteToReplace, 0xEB));
-    }
-
-    for (const auto& [text, insnToReplace] : Global::nopPatchingTargets)
-    {
-        const auto stringRef = FindStringReferenceA(text);
-        if (!stringRef)
+    
+        if (target.SearchBackwards)
         {
-            Log("Couldn't find string reference to {}", text);
-            return false;
-        }
+            const auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
+    
+            const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
 
-        const auto previousIntInsn = PatternScanExactReverse(std::vector<byte>(1, 0xCC), stringRef, 0x500);
-
-        const auto insns = dis.Disasm(previousIntInsn, stringRef - previousIntInsn, reinterpret_cast<size_t>(previousIntInsn));
-
-        for (size_t i = insns->Count - 1; i > 0; --i)
-        {
-            const auto curInsn = insns->Instructions(i);
-            if (string(curInsn->mnemonic) != insnToReplace)
-                continue;
-
-            const auto insnAddr = reinterpret_cast<byte*>(curInsn->address);
-
-            Log("Found address to patch (nop) {} @ 0x{:X} ({} bytes)", text, reinterpret_cast<uintptr_t>(insnAddr), curInsn->size);
-
-            for (auto addr = insnAddr; addr < insnAddr + curInsn->size; ++addr)
+            bool foundAddr = false;
+            for (size_t i = insns->Count - target.InstructionSignature.size(); i > 0; --i)
             {
-                Global::targetAddresses.try_emplace(addr, std::make_pair(*addr, 0x90));
+                const auto curInsn = insns->Instructions(i);
+    
+                bool found = true;
+                for (size_t j = 0; j < target.InstructionSignature.size(); ++j)
+                {
+                    if (string(insns->Instructions(i + j)->mnemonic) == target.InstructionSignature[j])
+                        continue;
+    
+                    found = false;
+                    break;
+                }
+    
+                if (!found)
+                    continue;
+    
+                const auto insnAddr = reinterpret_cast<byte*>(insns->Instructions(i + target.InstructionIndex)->address);
+    
+                Log("Found address to patch {} (-> 0x{:X}) @ 0x{:X} ({} bytes)", target.ReferencedString, target.Patch, reinterpret_cast<uintptr_t>(insnAddr), target.PatchByteCount);
+    
+                for (auto addr = insnAddr; addr < insnAddr + target.PatchByteCount; ++addr)
+                {
+                    Global::targetAddresses.try_emplace(addr, std::make_pair(*addr, target.Patch));
+                }
+
+                foundAddr = true;
+                break;
             }
 
-            break;
+            if (!foundAddr)
+            {
+                Log("Couldn't find address for {}", target.ReferencedString);
+                return false;
+            }
+        }
+        else
+        {
+            // @todo (not necessary yet)
         }
     }
 
     return true;
+}
+
+bool FindGlobals()
+{
+    Log("Searching globals...");
+
+    {
+        const auto stringRef = FindStringReferenceA("$SB_ERRORBODY_DUPLICATION_EXCEEDED");
+        const auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
+
+        const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
+
+        for (size_t i = insns->Count - 1; i > 0; --i)
+        {
+            const auto curInsn = insns->Instructions(i);
+
+            /* target is cmp insn with dword ptr */
+            const auto isTargetInsn =
+                string(curInsn->mnemonic) == "cmp"
+                && string(curInsn->op_str).find("rip") != string::npos;
+            if (!isTargetInsn)
+                continue;
+
+            Global::maxShipModulesPtr = reinterpret_cast<int*>(curInsn->address + curInsn->size + curInsn->detail->x86.disp);
+
+            Log("Found maxShipModules @ 0x{:X}", reinterpret_cast<uintptr_t>(Global::maxShipModulesPtr));
+            return true;
+        }
+
+        Log("Couldn't find maxShipModules global");
+    }
+
+    return false;
 }
 
 bool FindFunctions()
@@ -88,7 +131,7 @@ bool FindFunctions()
         return false;
     }
 
-    const auto followingIntInsn = PatternScanFromStartExact(std::vector<byte>(1, 0xCC), stringRef, 0x200);
+    const auto followingIntInsn = PatternScanFromStartExact({ 0xC3, 0xCC }, stringRef, 0x1000);
     if (!followingIntInsn)
     {
         Log("Failed to find function end");

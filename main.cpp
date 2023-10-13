@@ -146,6 +146,10 @@ void DisableLimitations()
     {
         WriteToReadOnlyMemory(address, origAndPatchPair.second);
     }
+
+    Global::maxShipModulesPrev = *Global::maxShipModulesPtr;
+    *Global::maxShipModulesPtr = INT_MAX;
+
     ExecuteCommand(R"(cgf "Debug.Notification" "Ship limitations disabled.")");
 }
 
@@ -155,6 +159,9 @@ void EnableLimitations()
     {
         WriteToReadOnlyMemory(address, origAndPatchPair.first);
     }
+
+    *Global::maxShipModulesPtr = Global::maxShipModulesPrev;
+
     ExecuteCommand(R"(cgf "Debug.Notification" "Ship limitations restored.")");
 }
 
@@ -169,6 +176,9 @@ static void OnDelayLoad()
         return;
 
     if (!FindPatchingTargets())
+        return;
+
+    if (!FindGlobals())
         return;
 
     if (!FindFunctions())
