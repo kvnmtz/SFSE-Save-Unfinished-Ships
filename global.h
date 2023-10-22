@@ -19,6 +19,8 @@ namespace Global
         { "$SB_ERRORBODY_NOT_ATTACHED", true, { "jne" }, 0xEB, 0, 1 },
         { "$SB_ERRORBODY_COUNT", true, { "jbe" }, 0xEB, 0, 1 },
         { "$SB_ERRORBODY_SIZE", true, { "jbe" }, 0xEB, 0, 1 },
+        { "$SB_ERRORBODY_SIZE", true, { "ja", "vmulss", "vcomiss", "ja" }, 0x90, 3, 2},
+        { "$SB_ERRORBODY_SIZE", true, { "ja", "vmulss", "vcomiss", "ja" }, 0x90, 0, 2},
     
         { "$SB_LIMITBODY_MAX_COCKPIT", true, { "jle" }, 0xEB, 0, 1 },
         { "$SB_LIMITBODY_MISSING_COCKPIT", true, { "jge" }, 0xEB, 0, 1 },
