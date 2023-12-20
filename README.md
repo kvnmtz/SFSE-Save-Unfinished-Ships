@@ -1,6 +1,8 @@
 # 💾 SFSE Save Unfinished Ships
 Starfield Script Extender plugin that allows the user to bypass spaceship builder limitations. This can be used to save unfinished ships or to build ships that normally wouldn't be possible.
 
+https://www.nexusmods.com/starfield/mods/5236
+
 # How to use
 1. Install SFSE (https://www.nexusmods.com/starfield/mods/106)
 2. Drop the .dll file in the `<Starfield>\Data\SFSE\Plugins` directory.
