@@ -1,7 +1,7 @@
 #include "global.h"
 #include "init.h"
 #include "log.h"
-#include "utils.hpp"
+#include "utils.h"
 
 #pragma region SFSE_SETUP_CODE
 #define MAKE_EXE_VERSION_EX(major, minor, build, sub) ((((major) & 0xFF) << 24) | (((minor) & 0xFF) << 16) | (((build) & 0xFFF) << 4) | ((sub) & 0xF))

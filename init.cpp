@@ -4,7 +4,7 @@
 
 #include "global.h"
 #include "log.h"
-#include "utils.hpp"
+#include "utils.h"
 
 CX86Disasm64 dis;
 
