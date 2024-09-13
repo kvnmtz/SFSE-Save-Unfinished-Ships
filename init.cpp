@@ -26,61 +26,85 @@ bool FindPatchingTargets()
 {
     Log("Searching addresses to patch...");
 
-    for (const auto& target : Global::patchingTargets)
+    for (const auto& targetStringRef : Global::patchingTargets)
     {
-        const auto stringRef = FindStringReferenceA(target.ReferencedString);
+        const auto stringRef = FindStringReferenceA(targetStringRef);
         if (!stringRef)
         {
-            Log("Couldn't find string reference to {}", target.ReferencedString);
+            Log("Couldn't find string reference to {}", targetStringRef);
             return false;
         }
-    
-        if (target.SearchBackwards)
+
+        const auto followingRetIntInsn = PatternScanFromStartExact({ 0xC3, 0xCC }, stringRef, 0x10000);
+        const auto insns = dis.Disasm(stringRef, followingRetIntInsn - stringRef, reinterpret_cast<size_t>(stringRef));
+
+        std::vector<string> instructionSignature = { "mov", "lea", "call" };
+
+        bool foundAddr = false;
+        for (size_t i = 0; i < insns->Count - instructionSignature.size(); ++i)
         {
-            const auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
-    
-            const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
+            const auto curInsn = insns->Instructions(i);
 
-            bool foundAddr = false;
-            for (size_t i = insns->Count - target.InstructionSignature.size(); i > 0; --i)
+            bool found = true;
+            for (size_t j = 0; j < instructionSignature.size(); ++j)
             {
-                const auto curInsn = insns->Instructions(i);
-    
-                bool found = true;
-                for (size_t j = 0; j < target.InstructionSignature.size(); ++j)
-                {
-                    if (string(insns->Instructions(i + j)->mnemonic) == target.InstructionSignature[j])
-                        continue;
-    
-                    found = false;
-                    break;
-                }
-    
-                if (!found)
+                if (string(insns->Instructions(i + j)->mnemonic) == instructionSignature[j])
                     continue;
-    
-                const auto insnAddr = reinterpret_cast<byte*>(insns->Instructions(i + target.InstructionIndex)->address);
-    
-                Log("Found address to patch {} (-> 0x{:X}) @ 0x{:X} ({} bytes)", target.ReferencedString, target.Patch, reinterpret_cast<uintptr_t>(insnAddr), target.PatchByteCount);
-    
-                for (auto addr = insnAddr; addr < insnAddr + target.PatchByteCount; ++addr)
-                {
-                    Global::targetAddresses.try_emplace(addr, std::make_pair(*addr, target.Patch));
-                }
 
-                foundAddr = true;
+                found = false;
                 break;
             }
 
-            if (!foundAddr)
+            if (!found)
+                continue;
+
+            /* Patching mov dl, 2 (B2 02) opcodes to change errors into warnings */
+
+            std::vector<byte> patch = { 0xB2, 0x01 }; // mov dl, 1
+
+            const auto insn = insns->Instructions(i);
+            const auto insnAddr = reinterpret_cast<byte*>(insn->address);
+
+            if (!(*insnAddr == 0xB2 && *(insnAddr + 1) == 0x02))
             {
-                Log("Couldn't find address for {}", target.ReferencedString);
+                Log("Unexpected opcodes 0x{:X} ({})", reinterpret_cast<uintptr_t>(insnAddr), targetStringRef);
                 return false;
             }
+
+            const auto byteAmount = patch.size();
+
+            Log("Found address to patch at 0x{:X} ({})", reinterpret_cast<uintptr_t>(insnAddr), targetStringRef);
+
+            string fromBytes = "";
+            string toBytes = "";
+            for (auto i = 0; i < byteAmount; ++i)
+            {
+                auto addr = insnAddr + i;
+                fromBytes += std::format("{:02X}", *addr);
+                toBytes += std::format("{:02X}", patch.at(i));
+                const auto isLastByte = i == byteAmount - 1;
+                if (!isLastByte)
+                {
+                    fromBytes += " ";
+                    toBytes += " ";
+                }
+            }
+            Log("-> {} will be replaced with {}", fromBytes, toBytes);
+
+            for (auto i = 0; i < byteAmount; ++i)
+            {
+                auto addr = insnAddr + i;
+                Global::targetAddresses.try_emplace(addr, std::make_pair(*addr, patch.at(i)));
+            }
+
+            foundAddr = true;
+            break;
         }
-        else
+
+        if (!foundAddr)
         {
-            // @todo (not necessary yet)
+            Log("Couldn't find address for {}", targetStringRef);
+            return false;
         }
     }
 
