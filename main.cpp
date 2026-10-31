@@ -120,7 +120,7 @@ extern "C" __declspec(dllexport) void SFSEPlugin_Preload(const SFSEInterface * s
 extern "C" __declspec(dllexport) SFSEPluginVersionData SFSEPlugin_Version = {
     SFSEPluginVersionData::kVersion,
 
-    1,
+    2,
     "Save Unfinished Ships",
     "3xpl01t",
 
@@ -144,12 +144,14 @@ void DisableLimitations()
 {
     for (const auto& [address, origAndPatchPair] : Global::targetAddresses)
     {
-        WriteToReadOnlyMemory(address, origAndPatchPair.second);
+        if (!WriteToReadOnlyMemory(address, origAndPatchPair.second))
+            Log("Failed to patch 0x{:X}", reinterpret_cast<uintptr_t>(address));
     }
 
     Global::maxShipModulesPrev = *Global::maxShipModulesPtr;
     *Global::maxShipModulesPtr = INT_MAX;
 
+    Log("Limitations disabled (maxShipModules was {})", Global::maxShipModulesPrev);
     ExecuteCommand(R"(cgf "Debug.Notification" "Ship limitations disabled.")");
 }
 
@@ -157,12 +159,27 @@ void EnableLimitations()
 {
     for (const auto& [address, origAndPatchPair] : Global::targetAddresses)
     {
-        WriteToReadOnlyMemory(address, origAndPatchPair.first);
+        if (!WriteToReadOnlyMemory(address, origAndPatchPair.first))
+            Log("Failed to restore 0x{:X}", reinterpret_cast<uintptr_t>(address));
     }
 
-    *Global::maxShipModulesPtr = Global::maxShipModulesPrev;
+    // only restore if nothing else (e.g. the game reloading its settings) changed the value in the meantime
+    if (*Global::maxShipModulesPtr == INT_MAX)
+        *Global::maxShipModulesPtr = Global::maxShipModulesPrev;
 
+    Log("Limitations restored (maxShipModules is {})", *Global::maxShipModulesPtr);
     ExecuteCommand(R"(cgf "Debug.Notification" "Ship limitations restored.")");
+}
+
+bool IsGameWindowFocused()
+{
+    const auto foregroundWindow = GetForegroundWindow();
+    if (!foregroundWindow)
+        return false;
+
+    DWORD processId = 0;
+    GetWindowThreadProcessId(foregroundWindow, &processId);
+    return processId == GetCurrentProcessId();
 }
 
 static void OnDelayLoad()
@@ -187,12 +204,17 @@ static void OnDelayLoad()
 
     Log("Initialization complete");
 
+    bool wasF6Down = false;
     while (true)
     {
         do
         {
-            const bool isF6Pressed = GetAsyncKeyState(VK_F6);
-            if (!isF6Pressed)
+            // high bit = key is currently down; only react to the press itself, not while it is held
+            const bool isF6Down = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
+            const bool isF6Pressed = isF6Down && !wasF6Down;
+            wasF6Down = isF6Down;
+
+            if (!isF6Pressed || !IsGameWindowFocused())
                 break;
 
             if (Global::areLimitationsDisabled)

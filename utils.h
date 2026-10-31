@@ -54,6 +54,9 @@ inline byte* PatternScanSectionExact(const std::vector<byte>& pattern, const str
 
 inline byte* PatternScanFromStartExact(const std::vector<byte>& pattern, byte* start, const uint32_t maxLength)
 {
+    if (!start)
+        return nullptr;
+
     for (auto curPtr = start; curPtr < start + maxLength - pattern.size(); ++curPtr)
     {
         bool found = true;
@@ -79,6 +82,9 @@ inline byte* PatternScanFromStartExact(const std::vector<byte>& pattern, byte* s
 
 inline byte* PatternScanExactReverse(const std::vector<byte>& pattern, byte* start, const uint32_t maxLength)
 {
+    if (!start)
+        return nullptr;
+
     for (auto curPtr = start - pattern.size(); curPtr > start - maxLength; --curPtr)
     {
         bool found = true;
@@ -218,6 +224,9 @@ inline byte* FindStringReferenceA(const string& text)
 
 inline byte* FindJmpReferenceToAddress(const byte* address)
 {
+    if (!address)
+        return nullptr;
+
     constexpr auto jmpInsnSize = 5;
 
     const auto& [sectionStart, sectionSize] = GetSectionInfo(".text");
@@ -241,10 +250,17 @@ inline byte* FindJmpReferenceToAddress(const byte* address)
 }
 
 template <typename T>
-void WriteToReadOnlyMemory(void* address, T value)
+bool WriteToReadOnlyMemory(void* address, T value)
 {
     DWORD oldProtect;
-    VirtualProtect(address, 1, PAGE_EXECUTE_READWRITE, &oldProtect);
+    if (!VirtualProtect(address, sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect))
+        return false;
+
     memcpy_s(address, sizeof(T), &value, sizeof(T));
-    VirtualProtect(address, 1, oldProtect, nullptr);
+
+    // restoring requires a valid out-parameter, otherwise VirtualProtect fails and the page stays RWX
+    DWORD unused;
+    VirtualProtect(address, sizeof(T), oldProtect, &unused);
+    FlushInstructionCache(GetCurrentProcess(), address, sizeof(T));
+    return true;
 }

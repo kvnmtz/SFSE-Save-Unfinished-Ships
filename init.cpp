@@ -36,10 +36,17 @@ bool FindPatchingTargets()
         }
 
         const auto followingRetIntInsn = PatternScanFromStartExact({ 0xC3, 0xCC }, stringRef, 0x10000);
+        if (!followingRetIntInsn)
+        {
+            Log("Couldn't find end of function for {}", targetStringRef);
+            return false;
+        }
+
         const auto insns = dis.Disasm(stringRef, followingRetIntInsn - stringRef, reinterpret_cast<size_t>(stringRef));
+        const size_t insnLimit = insns->Count > 0 ? min(insns->Count - 1, static_cast<size_t>(50)) : 0;
 
         bool foundAddr = false;
-        for (size_t i = 0; i < min(insns->Count - 1, 50); ++i)
+        for (size_t i = 0; i < insnLimit; ++i)
         {
             const auto curInsn = insns->Instructions(i);
 
@@ -103,6 +110,11 @@ bool FindGlobals()
 
         const auto stringRef = FindStringReferenceA("$SB_ERRORBODY_DUPLICATION_EXCEEDED");
         auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
+        if (!previousRetIntInsn)
+        {
+            Log("Couldn't find maxShipModules global (string reference)");
+            return false;
+        }
 
         auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
 
@@ -135,10 +147,15 @@ bool FindGlobals()
         Log("Found function ref @ 0x{:X} (base+0x{:X})", reinterpret_cast<uintptr_t>(jmpRef), reinterpret_cast<uintptr_t>(jmpRef) - Global::moduleBase);
 
         previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, jmpRef, 0x1000);
+        if (!previousRetIntInsn)
+        {
+            Log("Couldn't find maxShipModules global (function start)");
+            return false;
+        }
         insns = dis.Disasm(previousRetIntInsn, jmpRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
 
         bool found = false;
-        for (size_t i = insns->Count - 1; i > 0; --i)
+        for (size_t i = insns->Count; i-- > 1;)
         {
             const auto curInsn = insns->Instructions(i);
 
@@ -175,10 +192,16 @@ bool FindGlobals()
         }
 
         const auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
-        const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(stringRef));
+        if (!previousRetIntInsn)
+        {
+            Log("Failed to find global (scaleformManagerPtr)");
+            return false;
+        }
+        // the base address must be the start of the disassembled range, otherwise rip-relative targets are off
+        const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
 
         bool found = false;
-        for (size_t i = 1; i < insns->Count; ++i)
+        for (size_t i = 1; i + 1 < insns->Count; ++i)
         {
             const auto insn = insns->Instructions(i);
 
@@ -218,6 +241,11 @@ bool FindFunctions()
         }
 
         const auto previousRetIntInsn = PatternScanExactReverse({ 0xC3, 0xCC }, stringRef, 0x1000);
+        if (!previousRetIntInsn)
+        {
+            Log("Failed to find function (ExecuteCommand)");
+            return false;
+        }
         const auto insns = dis.Disasm(previousRetIntInsn, stringRef - previousRetIntInsn, reinterpret_cast<size_t>(previousRetIntInsn));
 
         bool found = false;
