@@ -3,7 +3,7 @@
 #include <Windows.h>
 #include <cstdint>
 
-#include <X86Disasm.hh>
+#include "disasm.h"
 
 #include <string>
 #include <vector>

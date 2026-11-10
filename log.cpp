@@ -38,7 +38,11 @@ string GetLogFilePath()
     if (path.empty())
         return "";
 
-    path = path.replace(path.find(".dll"), 4, ".log");
+    const auto extensionPos = path.rfind(".dll");
+    if (extensionPos == string::npos)
+        return path + ".log";
+
+    path = path.replace(extensionPos, 4, ".log");
     return path;
 }
 
