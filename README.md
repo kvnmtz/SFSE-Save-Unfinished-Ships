@@ -18,7 +18,7 @@ Such ships can be unflyable, impossible to board or take off with, or cause othe
 # Troubleshooting
 The plugin writes a log next to the DLL (`Data\SFSE\Plugins\SaveUnfinishedShips.log`).
 If initialization fails after a game update, the log says which step failed and the plugin stays inactive.
-Don't install two copies of the plugin (e.g. this build and the Nexus build): both would react to F6 and undo each other.
+Don't install two copies of the plugin (for example two differently named builds): both would react to F6 and undo each other.
 
 # Building
 Requires Visual Studio 2022 (or its Build Tools) with the C++ workload, which includes CMake.
